@@ -1,10 +1,14 @@
 package main
 
 import (
+	"container/list"
 	"log"
+	"math"
 )
 
-// An edge is a connection bitween two points. Every edge has two terminal vertecies and a weight between the vertecies.
+// Source https://www.cse.ust.hk/~dekai/271/notes/L07/L07.pdf
+
+//Edge is a connection bitween two points. Every edge has two terminal vertecies and a weight between the vertecies.
 type Edge struct {
 	source      string
 	sink        string
@@ -19,30 +23,66 @@ type Graph struct {
 }
 
 // AddVertex adds a vertex to the graph
-func (g Graph) AddVertex(vertex string) {
+func (g *Graph) AddVertex(vertex string) {
 	g.vertecies[vertex] = make([]Edge, 0)
 }
 
 // AddEdge adds an edge to the graph
-func (g Graph) AddEdge(source string, sink string, capacity float32) {
+func (g *Graph) AddEdge(source string, sink string, capacity float32) {
 	edge := Edge{source, sink, capacity, nil}
 	g.edges = append(g.edges, edge)
+	g.vertecies[source] = append(g.vertecies[source], edge)
+}
+
+func (g Graph) getEdges(vertex string) ([]Edge, bool) {
+	edges, ok := g.vertecies[vertex]
+	return edges, ok
 }
 
 // Prims algorithm finds a minimal spanning tree for a graph. That simple
 //
 // Running time is O((|V| + |E|) times log(|V|))
 func Prims(g Graph) []Edge {
+	if len(g.edges) == 0 {
+		return make([]Edge, 0)
+	}
+
 	r := g.edges[0] // pick any vertex as the root
+
 	s := make([]Edge, 1)
 	s = append(s, r)
 
-	a := make([]Edge, 0)
+	terminalEdges := list.New()
+	terminalEdges.PushBack(r)
 
-	hasAllNodes := false
-	for !hasAllNodes {
+	hasAllNodes := true
+	for hasAllNodes {
+		var minimum float32 = math.MaxFloat32
+		var smallestEdge Edge
+		var smallestE *list.Element
+		for e := terminalEdges.Front(); e != nil; e = e.Next() {
+			terminalEdge := e.Value.(Edge)
+			if terminalEdge.capacity < minimum {
+				minimum = terminalEdge.capacity
+				smallestEdge = terminalEdge
+				smallestE = e
+			}
+		}
 
+		terminalEdges.Remove(smallestE)
+		edges, hasVertex := g.getEdges(smallestEdge.sink)
+		if hasVertex {
+			for _, edge := range edges {
+				terminalEdges.PushBack(edge)
+			}
+		}
+
+		s = append(s, smallestEdge)
+
+		hasAllNodes = terminalEdges.Len() == 0
 	}
+
+	return s
 }
 
 // New creates a new graph and assigns its values
@@ -98,6 +138,6 @@ func main() {
 	g := buildExampleGraph()
 	edges := Prims(g)
 	for _, edge := range edges {
-		log.Printf("Edge from %s to %s with cost %d", edge.source, edge.sink, edge.capacity)
+		log.Printf("Edge from %s to %s with cost %v", edge.source, edge.sink, edge.capacity)
 	}
 }
